@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+#Custom ignore files
+.DS_Store
+ChatViewModelTest.kt
+FcmServicePortTest.java
