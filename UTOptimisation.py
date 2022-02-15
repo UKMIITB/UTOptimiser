@@ -9,6 +9,10 @@ prepareForTestClassRegexJava = '[\w\.]*\.class'
 mockStaticClassRegexKT = "mockStatic\s*?\((.+::class)"
 mockStaticClassRegexJava = "mockStatic\s*?\((.+)\)"
 
+staticFunctionCallRegex = "\..+?\("
+
+mockStaticFunctionCallExceptions = ['FileLogUtils']
+
 
 def getFileContentAsText(fileName):
 
@@ -50,6 +54,21 @@ def getMockStaticClassListFromFileContent(fileContent, isKotin):
     return mockStaticClassList
 
 
+def isMockStaticFunctionCalled(className, fileContent, isKotlin):
+    className = className.split(
+        "::class")[0] if isKotlin else className.split(".class")[0]
+
+    if (className in mockStaticFunctionCallExceptions):
+        return True
+
+    classStaticFunctionCallRegex = className + staticFunctionCallRegex
+    return len(re.findall(classStaticFunctionCallRegex, fileContent))
+
+
+def getUnusedMockStaticRemovalRegex(className):
+    return "\s.+?\.mockStatic\(" + className + ".*?\)"
+
+
 def optimisePrepareForTestForFile(fileName):
     fileContent = getFileContentAsText(fileName)
 
@@ -64,8 +83,19 @@ def optimisePrepareForTestForFile(fileName):
     mockStaticClassList = getMockStaticClassListFromFileContent(
         fileContent, isKotlin)
 
+    mockStaticClassActuallyUsed = list(filter(lambda mockStaticClass: isMockStaticFunctionCalled(
+        mockStaticClass, fileContent, isKotlin), mockStaticClassList))
+
+    unusedMockStaticClassList = list(set(
+        mockStaticClassList) - set(mockStaticClassActuallyUsed))
+
+    for unusedMockStaticClass in unusedMockStaticClassList:
+        unusedMockStaticRemovalRegex = getUnusedMockStaticRemovalRegex(
+            unusedMockStaticClass)
+        fileContent = re.sub(unusedMockStaticRemovalRegex, "", fileContent)
+
     classesToRemoveFromPrepareForTestClassList = list(
-        set(prepareForTestClassList) - set(mockStaticClassList))
+        set(prepareForTestClassList) - set(mockStaticClassActuallyUsed))
 
     prepareForTestContentOptimised = prepareForTestContent
 
